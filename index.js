@@ -18,9 +18,28 @@ const leveling = require('./leveling');
 const trivia = require('./trivia');
 const hangman = require('./hangman');
 
-const TOKEN = process.env.DISCORD_TOKEN;
-const CLIENT_ID = process.env.CLIENT_ID;
-const GUILD_ID = process.env.GUILD_ID; // instant command registration in one server
+// Trim in case the token picked up a trailing space/newline when it was
+// copy-pasted into the hosting platform's env var field.
+const TOKEN = (process.env.DISCORD_TOKEN || '').trim();
+const CLIENT_ID = (process.env.CLIENT_ID || '').trim();
+const GUILD_ID = (process.env.GUILD_ID || '').trim(); // instant command registration in one server
+
+// ---- Startup diagnostics ----
+// A real Discord bot token is ~70 characters. If this logs "NO" or a wrong
+// length, the env var isn't reaching the app — fix it in your host's
+// Variables/Secrets tab rather than in this code.
+console.log('DISCORD_TOKEN loaded:', TOKEN ? `yes, length ${TOKEN.length}` : 'NO — undefined/empty');
+console.log('CLIENT_ID loaded:', CLIENT_ID ? `yes, length ${CLIENT_ID.length}` : 'NO — undefined/empty');
+console.log('GUILD_ID loaded:', GUILD_ID ? `yes, length ${GUILD_ID.length}` : 'NO — undefined/empty (optional, only needed for instant command registration)');
+
+if (!TOKEN) {
+  console.error('\nFATAL: DISCORD_TOKEN is missing. Set it in your host\'s environment variables (not just in a local .env file — hosts like Railway/Replit need it added in their own Variables/Secrets panel).');
+  process.exit(1);
+}
+if (!CLIENT_ID) {
+  console.error('\nFATAL: CLIENT_ID is missing. Copy the Application ID from the Discord Developer Portal → General Information.');
+  process.exit(1);
+}
 
 const client = new Client({
   intents: [
