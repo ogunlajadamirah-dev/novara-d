@@ -6,7 +6,7 @@ const { getUser, saveUser } = require('./storage');
 const WORDS = [
   'community', 'discord', 'keyboard', 'sunshine', 'mountain', 'library',
   'birthday', 'elephant', 'notebook', 'universe', 'festival', 'chocolate',
-  'umbrella', 'triangle', 'volcano', 'penguin', 'treasure', 'wonderful',
+  'umbrella', 'triangle', 'volcano', 'penguin', 'treasure', 'wonderful', 'sunshine',
 ];
 
 const REWARD = 40;
