@@ -19,7 +19,7 @@ const leveling = require('./leveling');
 const trivia = require('./trivia');
 const hangman = require('./hangman');
 const applications = require('./applications');
-const { initKVStore } = require('./db-kv');
+const { initKVStore, getStatus } = require('./db-kv');
 const moreGames = require('./more-games');
 const rankCard = require('./rank-card');
 const verification = require('./verification');
@@ -111,6 +111,7 @@ const commands = [
     .setName('applicationdetail')
     .setDescription('(Admin) View the full form for one application by ID')
     .addStringOption((o) => o.setName('id').setDescription('Application ID (copy from /viewapplications)').setRequired(true)),
+  new SlashCommandBuilder().setName('dbstatus').setDescription('(Admin) Check whether the bot is connected to Postgres and see what\'s stored'),
   new SlashCommandBuilder().setName('rps').setDescription('Play Rock Paper Scissors against the bot'),
   new SlashCommandBuilder().setName('guessnumber').setDescription('Start a number-guessing game in this channel (1-100)'),
   new SlashCommandBuilder().setName('wouldyourather').setDescription('Get a Would You Rather question'),
@@ -332,6 +333,35 @@ client.on('interactionCreate', async (interaction) => {
 
   if (commandName === 'applicationdetail') {
     await applications.viewApplicationDetail(interaction);
+  }
+
+  if (commandName === 'dbstatus') {
+    if (!interaction.memberPermissions.has('ManageRoles')) {
+      await interaction.reply({ content: 'You need Manage Roles permission to check this.', ephemeral: true });
+      return;
+    }
+    await interaction.deferReply({ ephemeral: true });
+    const status = await getStatus();
+
+    if (!status.usingPostgres) {
+      await interaction.editReply(
+        '⚠️ **Not connected to Postgres** — running on local files, which are wiped on every redeploy.\n\nSet `DATABASE_URL` in Railway\'s Variables tab to fix this.',
+      );
+      return;
+    }
+
+    if (!status.connectionOk) {
+      await interaction.editReply(`❌ **Postgres connection is set up but failing:**\n\`${status.error}\`\n\nDouble check your DATABASE_URL value is correct.`);
+      return;
+    }
+
+    const rowsText = status.postgresRows
+      .map((r) => `• \`${r.key}\` — last updated ${new Date(r.updated_at).toLocaleString()}`)
+      .join('\n') || 'No data stored yet.';
+
+    await interaction.editReply(
+      `✅ **Connected to Postgres.** Data will survive redeploys.\n\n**Stored keys:**\n${rowsText}`,
+    );
   }
 
   if (commandName === 'rps') {
