@@ -107,6 +107,10 @@ const commands = [
           { name: 'all', value: 'all' },
         ),
     ),
+  new SlashCommandBuilder()
+    .setName('applicationdetail')
+    .setDescription('(Admin) View the full form for one application by ID')
+    .addStringOption((o) => o.setName('id').setDescription('Application ID (copy from /viewapplications)').setRequired(true)),
   new SlashCommandBuilder().setName('rps').setDescription('Play Rock Paper Scissors against the bot'),
   new SlashCommandBuilder().setName('guessnumber').setDescription('Start a number-guessing game in this channel (1-100)'),
   new SlashCommandBuilder().setName('wouldyourather').setDescription('Get a Would You Rather question'),
@@ -324,6 +328,10 @@ client.on('interactionCreate', async (interaction) => {
 
   if (commandName === 'viewapplications') {
     await applications.listApplications(interaction);
+  }
+
+  if (commandName === 'applicationdetail') {
+    await applications.viewApplicationDetail(interaction);
   }
 
   if (commandName === 'rps') {
