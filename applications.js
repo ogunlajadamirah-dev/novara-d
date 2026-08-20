@@ -235,6 +235,45 @@ async function listApplications(interaction) {
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
 
+// ---- View one application's full details by ID ----
+async function viewApplicationDetail(interaction) {
+  if (!interaction.memberPermissions.has('ManageRoles')) {
+    await interaction.reply({ content: 'You need Manage Roles permission to view applications.', ephemeral: true });
+    return;
+  }
+
+  const appId = interaction.options.getString('id');
+  const data = load();
+  const app = data.applications.find((a) => a.id === appId);
+
+  if (!app) {
+    await interaction.reply({ content: `No application found with ID \`${appId}\`. Copy the ID exactly from \`/viewapplications\`.`, ephemeral: true });
+    return;
+  }
+
+  const statusEmoji = { pending: '🟡', approved: '🟢', rejected: '🔴' };
+  const embed = new EmbedBuilder()
+    .setColor(0x3498db)
+    .setTitle(`${statusEmoji[app.status] || '⚪'} ${app.roleLabel} — ${app.username}`)
+    .addFields(
+      { name: 'Applicant', value: `<@${app.userId}>` },
+      { name: 'Status', value: app.status, inline: true },
+      { name: 'Submitted', value: new Date(app.submittedAt).toLocaleString(), inline: true },
+      { name: 'Timezone', value: app.timezone },
+      { name: 'Weekly activity', value: app.activity },
+      { name: 'Experience', value: app.experience.slice(0, 1000) },
+      { name: 'Why this role', value: app.why.slice(0, 1000) },
+      { name: 'Sample / relevant story', value: app.sample.slice(0, 1000) },
+    )
+    .setFooter({ text: `ID: ${app.id}` });
+
+  if (app.decidedBy) {
+    embed.addFields({ name: 'Decided by', value: `<@${app.decidedBy}> on ${new Date(app.decidedAt).toLocaleString()}` });
+  }
+
+  await interaction.reply({ embeds: [embed], ephemeral: true });
+}
+
 module.exports = {
   ROLES,
   MOD_CAP,
@@ -244,4 +283,5 @@ module.exports = {
   handleDecisionButton,
   getApprovedModCount,
   listApplications,
+  viewApplicationDetail,
 };
