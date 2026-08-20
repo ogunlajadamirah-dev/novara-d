@@ -4,6 +4,14 @@
 // Railway/Replit unlike node-canvas.
 
 const { createCanvas, loadImage, GlobalFonts } = require('@napi-rs/canvas');
+const path = require('path');
+
+// Register bundled fonts — required because hosting environments (Railway,
+// Replit, etc.) don't have system fonts installed. Without this, ctx.font
+// silently fails and canvas draws shapes (like the avatar circle) but no
+// text at all, which is exactly the "only the picture shows up" symptom.
+GlobalFonts.registerFromPath(path.join(__dirname, 'fonts', 'Inter-Regular.woff'), 'Inter');
+GlobalFonts.registerFromPath(path.join(__dirname, 'fonts', 'Inter-Bold.woff'), 'Inter Bold');
 
 // ==================== helpers ====================
 
@@ -70,12 +78,12 @@ async function generateRankCard({ username, handle, avatarUrl, rank, level, xp, 
 
   // Username
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 34px sans-serif';
+  ctx.font = 'bold 34px "Inter Bold"';
   ctx.fillText(username, 210, 95);
 
   // Handle
   ctx.fillStyle = '#a89b8f';
-  ctx.font = '20px sans-serif';
+  ctx.font = '20px "Inter"';
   ctx.fillText(handle, 210, 122);
 
   // Divider line
@@ -87,12 +95,12 @@ async function generateRankCard({ username, handle, avatarUrl, rank, level, xp, 
 
   // EXPERIENCE label + numbers
   ctx.fillStyle = '#a89b8f';
-  ctx.font = '16px sans-serif';
+  ctx.font = '16px "Inter"';
   ctx.fillText('EXPERIENCE', 210, 168);
   const pct = Math.min(100, Math.round((xp / xpNeeded) * 100));
   ctx.textAlign = 'right';
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 16px sans-serif';
+  ctx.font = 'bold 16px "Inter Bold"';
   ctx.fillText(`${xp} / ${xpNeeded} · ${pct}%`, 700, 168);
   ctx.textAlign = 'left';
 
@@ -107,21 +115,21 @@ async function generateRankCard({ username, handle, avatarUrl, rank, level, xp, 
 
   // TOTAL XP / MSGS stats
   ctx.fillStyle = '#a89b8f';
-  ctx.font = '14px sans-serif';
+  ctx.font = '14px "Inter"';
   ctx.fillText('TOTAL XP', 210, 222);
   ctx.fillText('MSGS', 420, 222);
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 22px sans-serif';
+  ctx.font = 'bold 22px "Inter Bold"';
   ctx.fillText(totalXp.toLocaleString(), 210, 248);
   ctx.fillText(String(msgs), 420, 248);
 
   // RANK / LEVEL panel (right side)
   ctx.textAlign = 'center';
   ctx.fillStyle = '#a89b8f';
-  ctx.font = '15px sans-serif';
+  ctx.font = '15px "Inter"';
   ctx.fillText('RANK', width - 110, 90);
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 40px sans-serif';
+  ctx.font = 'bold 40px "Inter Bold"';
   ctx.fillText(`#${rank}`, width - 110, 135);
 
   ctx.strokeStyle = 'rgba(255,255,255,0.2)';
@@ -131,10 +139,10 @@ async function generateRankCard({ username, handle, avatarUrl, rank, level, xp, 
   ctx.stroke();
 
   ctx.fillStyle = '#a89b8f';
-  ctx.font = '15px sans-serif';
+  ctx.font = '15px "Inter"';
   ctx.fillText('LEVEL', width - 110, 190);
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 40px sans-serif';
+  ctx.font = 'bold 40px "Inter Bold"';
   ctx.fillText(String(level), width - 110, 235);
   ctx.textAlign = 'left';
 
@@ -160,11 +168,11 @@ async function generateLeaderboardCard({ serverName, title, entries, currency = 
 
   // Header
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 20px sans-serif';
+  ctx.font = 'bold 20px "Inter Bold"';
   ctx.fillText(serverName, 40, 55);
 
   ctx.textAlign = 'center';
-  ctx.font = 'bold 30px sans-serif';
+  ctx.font = 'bold 30px "Inter Bold"';
   ctx.fillText(title.toUpperCase(), width / 2, 55);
   ctx.strokeStyle = '#e03e5b';
   ctx.lineWidth = 3;
@@ -175,7 +183,7 @@ async function generateLeaderboardCard({ serverName, title, entries, currency = 
 
   ctx.textAlign = 'right';
   ctx.fillStyle = '#a89b8f';
-  ctx.font = '16px sans-serif';
+  ctx.font = '16px "Inter"';
   ctx.fillText(`PAGE 1/1 · ${entries.length} players`, width - 40, 55);
   ctx.textAlign = 'left';
 
@@ -218,15 +226,15 @@ async function generateLeaderboardCard({ serverName, title, entries, currency = 
 
     ctx.textAlign = 'center';
     ctx.fillStyle = isFirst ? '#f1c40f' : '#ffffff';
-    ctx.font = 'bold 22px sans-serif';
+    ctx.font = 'bold 22px "Inter Bold"';
     ctx.fillText(entry.name, cx, avatarY + 75);
 
     ctx.fillStyle = podiumColors[entryIndex];
-    ctx.font = '14px sans-serif';
+    ctx.font = '14px "Inter"';
     ctx.fillText('◆ ' + (entry.tag || 'Member'), cx, avatarY + 100);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 26px sans-serif';
+    ctx.font = 'bold 26px "Inter Bold"';
     ctx.fillText(formatValue ? formatValue(entry.value) : String(entry.value), cx, avatarY + 135);
 
     // rank badge
@@ -235,7 +243,7 @@ async function generateLeaderboardCard({ serverName, title, entries, currency = 
     ctx.fillStyle = podiumColors[entryIndex];
     ctx.fill();
     ctx.fillStyle = '#000000';
-    ctx.font = 'bold 15px sans-serif';
+    ctx.font = 'bold 15px "Inter Bold"';
     ctx.fillText(String(entryIndex + 1), cx, y + h);
     ctx.textAlign = 'left';
   }
@@ -249,18 +257,18 @@ async function generateLeaderboardCard({ serverName, title, entries, currency = 
     ctx.fill();
 
     ctx.fillStyle = '#a89b8f';
-    ctx.font = 'bold 20px sans-serif';
+    ctx.font = 'bold 20px "Inter Bold"';
     ctx.fillText(`#${i + 1}`, 60, rowY + rowHeight / 2 + 7);
 
     await drawCircleAvatar(ctx, entry.avatarUrl, 150, rowY + rowHeight / 2, 22, '#555');
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 20px sans-serif';
+    ctx.font = 'bold 20px "Inter Bold"';
     ctx.fillText(entry.name, 190, rowY + rowHeight / 2 + 7);
 
     ctx.textAlign = 'right';
     ctx.fillStyle = '#e07a90';
-    ctx.font = 'bold 20px sans-serif';
+    ctx.font = 'bold 20px "Inter Bold"';
     ctx.fillText(formatValue ? formatValue(entry.value) : String(entry.value), width - 60, rowY + rowHeight / 2 + 7);
     ctx.textAlign = 'left';
 
