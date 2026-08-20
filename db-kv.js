@@ -111,4 +111,24 @@ function isUsingPostgres() {
   return usingPostgres;
 }
 
-module.exports = { initKVStore, getKV, setKV, isUsingPostgres };
+// Diagnostic: returns connection info + row counts so admins can verify
+// persistence is actually working from inside Discord.
+async function getStatus() {
+  const status = {
+    usingPostgres,
+    keysInMemory: Object.keys(cache),
+  };
+  if (usingPostgres && pool) {
+    try {
+      const { rows } = await pool.query('SELECT key, updated_at FROM bot_storage ORDER BY updated_at DESC');
+      status.postgresRows = rows;
+      status.connectionOk = true;
+    } catch (err) {
+      status.connectionOk = false;
+      status.error = err.message;
+    }
+  }
+  return status;
+}
+
+module.exports = { initKVStore, getKV, setKV, isUsingPostgres, getStatus };
