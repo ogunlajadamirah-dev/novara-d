@@ -1,31 +1,16 @@
-// storage.js — simple JSON-file persistence. No external database needed.
-// Swap this for Supabase/Postgres later if the server grows large enough
-// that file-based storage becomes a bottleneck (thousands of active users).
+// storage.js — Economy/leveling data (coins, XP, levels). Persisted via
+// db-kv.js — Postgres if DATABASE_URL is set, local file otherwise.
 
-const fs = require('fs');
-const path = require('path');
+const { getKV, setKV } = require('./db-kv');
 
-const DATA_FILE = path.join(__dirname, 'data.json');
+const KEY = 'economy';
 
-function load() {
-  if (!fs.existsSync(DATA_FILE)) {
-    return { users: {} };
-  }
-  try {
-    return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-  } catch (err) {
-    console.error('Failed to read data.json, starting fresh:', err);
-    return { users: {} };
-  }
+function getData() {
+  return getKV(KEY, { users: {} });
 }
-
-function save(data) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-}
-
-let data = load();
 
 function getUser(userId) {
+  const data = getData();
   if (!data.users[userId]) {
     data.users[userId] = {
       coins: 100, // starting balance
@@ -34,17 +19,19 @@ function getUser(userId) {
       lastDaily: 0,
       lastXpGain: 0,
     };
+    setKV(KEY, data);
   }
   return data.users[userId];
 }
 
 function saveUser(userId, userData) {
+  const data = getData();
   data.users[userId] = userData;
-  save(data);
+  setKV(KEY, data);
 }
 
 function getAllUsers() {
-  return data.users;
+  return getData().users;
 }
 
 module.exports = { getUser, saveUser, getAllUsers };
