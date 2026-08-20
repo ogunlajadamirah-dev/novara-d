@@ -1,23 +1,17 @@
 // moderation.js — Warn / kick / ban commands with a persisted warning
 // history per user. Requires the appropriate Discord permission per action.
 
-const fs = require('fs');
-const path = require('path');
+const { getKV, setKV } = require('./db-kv');
 const { EmbedBuilder } = require('discord.js');
 
-const WARNINGS_FILE = path.join(__dirname, 'warnings.json');
+const STORAGE_KEY = 'warnings';
 
 function load() {
-  if (!fs.existsSync(WARNINGS_FILE)) return { warnings: {} };
-  try {
-    return JSON.parse(fs.readFileSync(WARNINGS_FILE, 'utf8'));
-  } catch {
-    return { warnings: {} };
-  }
+  return getKV(STORAGE_KEY, { warnings: {} });
 }
 
 function save(data) {
-  fs.writeFileSync(WARNINGS_FILE, JSON.stringify(data, null, 2));
+  setKV(STORAGE_KEY, data);
 }
 
 function addWarning(userId, moderatorId, reason) {
