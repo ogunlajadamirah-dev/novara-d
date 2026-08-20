@@ -2,8 +2,6 @@
 // 1. Button-based menu (/setupselfroles) — modern, cleaner, up to 25 roles across button rows
 // 2. Reaction-based (/setupreactionroles) — classic emoji-react-to-get-role style
 
-const fs = require('fs');
-const path = require('path');
 const {
   EmbedBuilder,
   ActionRowBuilder,
@@ -11,20 +9,16 @@ const {
   ButtonStyle,
   StringSelectMenuBuilder,
 } = require('discord.js');
+const { getKV, setKV } = require('./db-kv');
 
-const CONFIG_FILE = path.join(__dirname, 'self-roles.json');
+const STORAGE_KEY = 'selfroles';
 
 function load() {
-  if (!fs.existsSync(CONFIG_FILE)) return { reactionRoleMessages: {} };
-  try {
-    return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-  } catch {
-    return { reactionRoleMessages: {} };
-  }
+  return getKV(STORAGE_KEY, { reactionRoleMessages: {} });
 }
 
 function save(data) {
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2));
+  setKV(STORAGE_KEY, data);
 }
 
 // ==================== BUTTON / SELECT-MENU SELF-ROLES ====================
