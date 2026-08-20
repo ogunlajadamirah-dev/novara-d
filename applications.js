@@ -1,4 +1,4 @@
-// applications.js — Creator & Moderator application system.
+ // applications.js — Creator & Moderator application system.
 // Roles: Community Moderator, Senior Moderator (capped combined at MOD_CAP),
 // Manga Artist, Translator, Editor, Proofreader, Letter Writer (uncapped).
 
@@ -269,9 +269,16 @@ async function viewApplicationDetail(interaction) {
 
   if (app.decidedBy) {
     embed.addFields({ name: 'Decided by', value: `<@${app.decidedBy}> on ${new Date(app.decidedAt).toLocaleString()}` });
+    await interaction.reply({ embeds: [embed], ephemeral: true });
+    return;
   }
 
-  await interaction.reply({ embeds: [embed], ephemeral: true });
+  // Still pending — show Approve/Reject buttons right here, same as the review channel would
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`appdecision_approve_${app.id}`).setLabel('Approve').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId(`appdecision_reject_${app.id}`).setLabel('Reject').setStyle(ButtonStyle.Danger),
+  );
+  await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
 }
 
 module.exports = {
