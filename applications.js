@@ -2,8 +2,7 @@
 // Roles: Community Moderator, Senior Moderator (capped combined at MOD_CAP),
 // Manga Artist, Translator, Editor, Proofreader, Letter Writer (uncapped).
 
-const fs = require('fs');
-const path = require('path');
+const { getKV, setKV } = require('./db-kv');
 const {
   ModalBuilder,
   TextInputBuilder,
@@ -15,7 +14,6 @@ const {
   ButtonStyle,
 } = require('discord.js');
 
-const APPLICATIONS_FILE = path.join(__dirname, 'applications.json');
 const MOD_CAP = 20; // combined cap across Community Mod + Senior Mod, per your recruitment doc
 const REVIEW_CHANNEL_ID = process.env.APPLICATIONS_CHANNEL_ID; // where applications get posted for review
 
@@ -32,17 +30,14 @@ const ROLES = [
   { id: 'letter_writer', label: 'Letter Writer', capped: false },
 ];
 
+const STORAGE_KEY = 'applications';
+
 function load() {
-  if (!fs.existsSync(APPLICATIONS_FILE)) return { applications: [] };
-  try {
-    return JSON.parse(fs.readFileSync(APPLICATIONS_FILE, 'utf8'));
-  } catch {
-    return { applications: [] };
-  }
+  return getKV(STORAGE_KEY, { applications: [] });
 }
 
 function save(data) {
-  fs.writeFileSync(APPLICATIONS_FILE, JSON.stringify(data, null, 2));
+  setKV(STORAGE_KEY, data);
 }
 
 function getApprovedModCount() {
@@ -208,6 +203,38 @@ async function handleDecisionButton(interaction, client) {
   await interaction.update({ embeds: [updatedEmbed], components: [] });
 }
 
+// ---- View all applications on demand ----
+async function listApplications(interaction) {
+  if (!interaction.memberPermissions.has('ManageRoles')) {
+    await interaction.reply({ content: 'You need Manage Roles permission to view applications.', ephemeral: true });
+    return;
+  }
+
+  const statusFilter = interaction.options.getString('status') || 'pending';
+  const data = load();
+  const filtered = data.applications
+    .filter((a) => statusFilter === 'all' || a.status === statusFilter)
+    .sort((a, b) => b.submittedAt - a.submittedAt);
+
+  if (filtered.length === 0) {
+    await interaction.reply({ content: `No ${statusFilter === 'all' ? '' : statusFilter + ' '}applications found.`, ephemeral: true });
+    return;
+  }
+
+  const statusEmoji = { pending: '🟡', approved: '🟢', rejected: '🔴' };
+  const lines = filtered.slice(0, 20).map((a) => {
+    const date = new Date(a.submittedAt).toLocaleDateString();
+    return `${statusEmoji[a.status] || '⚪'} **${a.roleLabel}** — <@${a.userId}> (${a.username}) — ${date}\n\`ID: ${a.id}\``;
+  });
+
+  const embed = new EmbedBuilder()
+    .setColor(0x3498db)
+    .setTitle(`Applications — ${statusFilter} (${filtered.length}${filtered.length > 20 ? ', showing 20' : ''})`)
+    .setDescription(lines.join('\n\n'));
+
+  await interaction.reply({ embeds: [embed], ephemeral: true });
+}
+
 module.exports = {
   ROLES,
   MOD_CAP,
@@ -216,4 +243,5 @@ module.exports = {
   handleModalSubmit,
   handleDecisionButton,
   getApprovedModCount,
+  listApplications,
 };
