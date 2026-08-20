@@ -24,6 +24,13 @@ const rankCard = require('./rank-card');
 const verification = require('./verification');
 const moderation = require('./moderation');
 const logging = require('./logging');
+const selfRoles = require('./self-roles');
+const moreGames2 = require('./more-games-2');
+const advancedGames = require('./advanced-games');
+const blackjack = require('./blackjack');
+const minesweeper = require('./minesweeper');
+const battleship = require('./battleship');
+const mafia = require('./mafia');
 
 // Trim in case the token picked up a trailing space/newline when it was
 // copy-pasted into the hosting platform's env var field.
@@ -54,8 +61,9 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessageReactions,
   ],
-  partials: [Partials.Message, Partials.Channel],
+  partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
 
 // ---- Slash commands ----
@@ -118,6 +126,43 @@ const commands = [
     .setName('unban')
     .setDescription('Unban a user by ID')
     .addStringOption((o) => o.setName('user_id').setDescription('The user ID to unban').setRequired(true)),
+  new SlashCommandBuilder()
+    .setName('setupselfroles')
+    .setDescription('(Admin) Post a self-role select menu in this channel')
+    .addStringOption((o) => o.setName('title').setDescription('Menu title').setRequired(true))
+    .addStringOption((o) => o.setName('roles').setDescription('Comma-separated role names, e.g. Fantasy,SciFi,Romance').setRequired(true)),
+  new SlashCommandBuilder()
+    .setName('setupreactionroles')
+    .setDescription('(Admin) Post a reaction-role message in this channel')
+    .addStringOption((o) => o.setName('title').setDescription('Message title').setRequired(true))
+    .addStringOption((o) => o.setName('pairs').setDescription('emoji:RoleName pairs, comma-separated, e.g. 🔵:He/Him,🔴:She/Her').setRequired(true)),
+  new SlashCommandBuilder()
+    .setName('8ball')
+    .setDescription('Ask the magic 8-ball a question')
+    .addStringOption((o) => o.setName('question').setDescription('Your question').setRequired(true)),
+  new SlashCommandBuilder().setName('mathrace').setDescription('Start a math race in this channel'),
+  new SlashCommandBuilder().setName('emojiriddle').setDescription('Start an emoji riddle in this channel'),
+  new SlashCommandBuilder().setName('typingtest').setDescription('Start a typing speed test in this channel'),
+  new SlashCommandBuilder()
+    .setName('tictactoe')
+    .setDescription('Challenge someone to Tic-Tac-Toe')
+    .addUserOption((o) => o.setName('opponent').setDescription('Who to challenge').setRequired(true)),
+  new SlashCommandBuilder()
+    .setName('connect4')
+    .setDescription('Challenge someone to Connect 4')
+    .addUserOption((o) => o.setName('opponent').setDescription('Who to challenge').setRequired(true)),
+  new SlashCommandBuilder().setName('wordle').setDescription('Start a community Wordle game in this channel'),
+  new SlashCommandBuilder()
+    .setName('blackjack')
+    .setDescription('Play Blackjack against the dealer')
+    .addIntegerOption((o) => o.setName('bet').setDescription('How many coins to bet').setRequired(true).setMinValue(1)),
+  new SlashCommandBuilder().setName('minesweeper').setDescription('Play a round of Minesweeper'),
+  new SlashCommandBuilder()
+    .setName('battleship')
+    .setDescription('Challenge someone to Battleship')
+    .addUserOption((o) => o.setName('opponent').setDescription('Who to challenge').setRequired(true)),
+  new SlashCommandBuilder().setName('mafia').setDescription('Open a Mafia game lobby in this channel'),
+  new SlashCommandBuilder().setName('mafiastart').setDescription('Start the Mafia game once enough players have joined'),
 ].map((c) => c.toJSON());
 
 async function registerCommands() {
@@ -140,6 +185,14 @@ const logAction = logging.makeLogAction(client);
 client.on('messageDelete', (message) => logging.logMessageDelete(message, client));
 client.on('messageUpdate', (oldMessage, newMessage) => logging.logMessageEdit(oldMessage, newMessage, client));
 client.on('guildMemberRemove', (member) => logging.logMemberLeave(member, client));
+client.on('messageReactionAdd', async (reaction, user) => {
+  if (reaction.partial) await reaction.fetch().catch(() => {});
+  await selfRoles.handleReactionAdd(reaction, user).catch((err) => console.error('reaction add failed:', err));
+});
+client.on('messageReactionRemove', async (reaction, user) => {
+  if (reaction.partial) await reaction.fetch().catch(() => {});
+  await selfRoles.handleReactionRemove(reaction, user).catch((err) => console.error('reaction remove failed:', err));
+});
 
 // ---- Welcome new members + assign Unverified role ----
 client.on('guildMemberAdd', async (member) => {
@@ -169,6 +222,22 @@ client.on('messageCreate', async (message) => {
   const handledByNumberGuess = await moreGames.handleNumberGuess(message).catch(() => false);
   if (handledByNumberGuess) return;
 
+  // Math race, if active in this channel
+  const handledByMath = await moreGames2.handleMathGuess(message).catch(() => false);
+  if (handledByMath) return;
+
+  // Emoji riddle, if active in this channel
+  const handledByRiddle = await moreGames2.handleRiddleGuess(message).catch(() => false);
+  if (handledByRiddle) return;
+
+  // Typing test, if active in this channel
+  const handledByTyping = await moreGames2.handleTypingSubmission(message).catch(() => false);
+  if (handledByTyping) return;
+
+  // Wordle guess, if active in this channel
+  const handledByWordle = await advancedGames.handleWordleGuess(message).catch(() => false);
+  if (handledByWordle) return;
+
   // Passive XP for chatting (cooldown-limited, see leveling.js)
   const result = leveling.grantMessageXp(message.author.id);
   if (result && result.leveledUp) {
@@ -181,6 +250,12 @@ client.on('interactionCreate', async (interaction) => {
   // Role picker for /apply
   if (interaction.isStringSelectMenu() && interaction.customId === 'apply_role_select') {
     await applications.handleRoleSelect(interaction).catch((err) => console.error('apply_role_select failed:', err));
+    return;
+  }
+
+  // Self-role picker
+  if (interaction.isStringSelectMenu() && interaction.customId === 'selfrole_select') {
+    await selfRoles.handleSelfRoleSelect(interaction).catch((err) => console.error('selfrole_select failed:', err));
     return;
   }
 
@@ -203,6 +278,22 @@ client.on('interactionCreate', async (interaction) => {
     if (handledRPS) return;
     const handledWYR = await moreGames.handleWYRButton(interaction).catch(() => false);
     if (handledWYR) return;
+    const handledTTT = await advancedGames.handleTTTButton(interaction).catch(() => false);
+    if (handledTTT) return;
+    const handledC4 = await advancedGames.handleC4Button(interaction).catch(() => false);
+    if (handledC4) return;
+    const handledBJ = await blackjack.handleBlackjackButton(interaction).catch(() => false);
+    if (handledBJ) return;
+    const handledMines = await minesweeper.handleMinesweeperButton(interaction).catch(() => false);
+    if (handledMines) return;
+    const handledBS = await battleship.handleBattleshipButton(interaction).catch(() => false);
+    if (handledBS) return;
+    const handledMafiaJoin = await mafia.handleJoinButton(interaction).catch(() => false);
+    if (handledMafiaJoin) return;
+    const handledMafiaVote = await mafia.handleVoteButton(interaction).catch(() => false);
+    if (handledMafiaVote) return;
+    const handledMafiaNight = await mafia.handleNightActionButton(interaction).catch(() => false);
+    if (handledMafiaNight) return;
     return;
   }
 
@@ -257,6 +348,66 @@ client.on('interactionCreate', async (interaction) => {
 
   if (commandName === 'unban') {
     await moderation.handleUnban(interaction, logAction);
+  }
+
+  if (commandName === 'setupselfroles') {
+    await selfRoles.postSelfRoleMenu(interaction);
+  }
+
+  if (commandName === 'setupreactionroles') {
+    await selfRoles.postReactionRoleMessage(interaction);
+  }
+
+  if (commandName === '8ball') {
+    await moreGames2.handle8Ball(interaction);
+  }
+
+  if (commandName === 'mathrace') {
+    await interaction.reply('Starting a math race...');
+    await moreGames2.startMathRace(interaction.channel);
+  }
+
+  if (commandName === 'emojiriddle') {
+    await interaction.reply('Starting an emoji riddle...');
+    await moreGames2.startEmojiRiddle(interaction.channel);
+  }
+
+  if (commandName === 'typingtest') {
+    await interaction.reply('Starting a typing test...');
+    await moreGames2.startTypingTest(interaction.channel);
+  }
+
+  if (commandName === 'tictactoe') {
+    await advancedGames.startTicTacToe(interaction);
+  }
+
+  if (commandName === 'connect4') {
+    await advancedGames.startConnect4(interaction);
+  }
+
+  if (commandName === 'wordle') {
+    await interaction.reply('Starting a Wordle game...');
+    await advancedGames.startWordle(interaction.channel);
+  }
+
+  if (commandName === 'blackjack') {
+    await blackjack.startBlackjack(interaction);
+  }
+
+  if (commandName === 'minesweeper') {
+    await minesweeper.startMinesweeper(interaction);
+  }
+
+  if (commandName === 'battleship') {
+    await battleship.startBattleship(interaction);
+  }
+
+  if (commandName === 'mafia') {
+    await mafia.createLobby(interaction);
+  }
+
+  if (commandName === 'mafiastart') {
+    await mafia.startGame(interaction, client);
   }
 
   if (commandName === 'balance') {
