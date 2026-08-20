@@ -19,6 +19,7 @@ const leveling = require('./leveling');
 const trivia = require('./trivia');
 const hangman = require('./hangman');
 const applications = require('./applications');
+const { initKVStore } = require('./db-kv');
 const moreGames = require('./more-games');
 const rankCard = require('./rank-card');
 const verification = require('./verification');
@@ -94,6 +95,18 @@ const commands = [
     ),
   new SlashCommandBuilder().setName('apply').setDescription('Apply for a mod or creator role on Novara'),
   new SlashCommandBuilder().setName('modslots').setDescription('Check how many moderator slots are still open'),
+  new SlashCommandBuilder()
+    .setName('viewapplications')
+    .setDescription('(Admin) View submitted mod/creator applications')
+    .addStringOption((o) =>
+      o.setName('status').setDescription('Filter by status')
+        .addChoices(
+          { name: 'pending', value: 'pending' },
+          { name: 'approved', value: 'approved' },
+          { name: 'rejected', value: 'rejected' },
+          { name: 'all', value: 'all' },
+        ),
+    ),
   new SlashCommandBuilder().setName('rps').setDescription('Play Rock Paper Scissors against the bot'),
   new SlashCommandBuilder().setName('guessnumber').setDescription('Start a number-guessing game in this channel (1-100)'),
   new SlashCommandBuilder().setName('wouldyourather').setDescription('Get a Would You Rather question'),
@@ -309,6 +322,10 @@ client.on('interactionCreate', async (interaction) => {
     await interaction.reply(`🛡️ Moderator slots: **${filled}/${applications.MOD_CAP}** filled (${applications.MOD_CAP - filled} open).`);
   }
 
+  if (commandName === 'viewapplications') {
+    await applications.listApplications(interaction);
+  }
+
   if (commandName === 'rps') {
     await moreGames.startRPS(interaction);
   }
@@ -515,4 +532,6 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
-client.login(TOKEN);
+initKVStore().then(() => {
+  client.login(TOKEN);
+});
