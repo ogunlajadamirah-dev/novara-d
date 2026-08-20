@@ -31,21 +31,48 @@ async function postVerificationMessage(interaction) {
     return;
   }
 
-  // Make sure both roles exist
-  await getOrCreateRole(interaction.guild, UNVERIFIED_ROLE_NAME, { color: 0x95a5a6 });
-  await getOrCreateRole(interaction.guild, VERIFIED_ROLE_NAME, { color: 0x2ecc71 });
+  // Check the BOT's own permissions — this is the most common silent-failure cause
+  const botMember = interaction.guild.members.me;
+  if (!botMember.permissions.has('ManageRoles')) {
+    await interaction.reply({
+      content: '❌ I don\'t have the **Manage Roles** permission in this server. Go to Server Settings → Roles → find my bot role → enable Manage Roles, then try again.',
+      ephemeral: true,
+    });
+    return;
+  }
 
-  const embed = new EmbedBuilder()
-    .setColor(0x2ecc71)
-    .setTitle('✅ Verify to enter Novara')
-    .setDescription('Click the button below to verify and unlock the rest of the server. Quick and automatic — no waiting.');
+  try {
+    // Make sure both roles exist
+    const unverifiedRole = await getOrCreateRole(interaction.guild, UNVERIFIED_ROLE_NAME, { color: 0x95a5a6 });
+    const verifiedRole = await getOrCreateRole(interaction.guild, VERIFIED_ROLE_NAME, { color: 0x2ecc71 });
 
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('verify_button').setLabel('Verify Me').setStyle(ButtonStyle.Success).setEmoji('✅'),
-  );
+    // Check role hierarchy — the bot can only manage roles BELOW its own highest role
+    if (botMember.roles.highest.position <= verifiedRole.position || botMember.roles.highest.position <= unverifiedRole.position) {
+      await interaction.reply({
+        content: `❌ My role is positioned too low. Go to Server Settings → Roles and drag my bot's role **above** "${VERIFIED_ROLE_NAME}" and "${UNVERIFIED_ROLE_NAME}", then try again.`,
+        ephemeral: true,
+      });
+      return;
+    }
 
-  await interaction.channel.send({ embeds: [embed], components: [row] });
-  await interaction.reply({ content: 'Verification message posted.', ephemeral: true });
+    const embed = new EmbedBuilder()
+      .setColor(0x2ecc71)
+      .setTitle('✅ Verify to enter Novara')
+      .setDescription('Click the button below to verify and unlock the rest of the server. Quick and automatic — no waiting.');
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('verify_button').setLabel('Verify Me').setStyle(ButtonStyle.Success).setEmoji('✅'),
+    );
+
+    await interaction.channel.send({ embeds: [embed], components: [row] });
+    await interaction.reply({ content: 'Verification message posted.', ephemeral: true });
+  } catch (err) {
+    console.error('setupverify failed:', err);
+    await interaction.reply({
+      content: `❌ Something went wrong setting this up: ${err.message}. Most common cause: check I have Manage Roles permission and my role is positioned above the roles I'm trying to manage.`,
+      ephemeral: true,
+    }).catch(() => {});
+  }
 }
 
 // Button click handler
@@ -70,8 +97,15 @@ async function handleVerifyButton(interaction) {
     }
     await interaction.reply({ content: '✅ You\'re verified! Welcome to the rest of the server.', ephemeral: true });
   } catch (err) {
-    console.error('Verification failed:', err);
-    await interaction.reply({ content: 'Something went wrong verifying you — ping a mod for help.', ephemeral: true });
+    console.error('Verification failed:', err.message);
+    const botMember = interaction.guild.members.me;
+    const hierarchyIssue = botMember.roles.highest.position <= verifiedRole.position;
+    await interaction.reply({
+      content: hierarchyIssue
+        ? 'Verification is misconfigured — ping an admin to check the bot\'s role position (Server Settings → Roles).'
+        : 'Something went wrong verifying you — ping a mod for help.',
+      ephemeral: true,
+    });
   }
   return true;
 }
