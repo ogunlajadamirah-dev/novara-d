@@ -1,4 +1,3 @@
-
 // applications.js — Creator & Moderator application system.
 // Roles: Community Moderator, Senior Moderator (capped combined at MOD_CAP),
 // Manga Artist, Translator, Editor, Proofreader, Letter Writer (uncapped).
@@ -168,7 +167,13 @@ async function handleDecisionButton(interaction, client) {
     return;
   }
 
-  const [, decision, appId] = interaction.customId.split('_');
+  // customId is "appdecision_approve_<appId>" or "appdecision_reject_<appId>" —
+  // appId itself contains an underscore (userId_timestamp), so splitting on
+  // '_' and taking only the 3rd piece was silently truncating it. Fixed by
+  // taking everything after the first two segments and rejoining.
+  const parts = interaction.customId.split('_');
+  const decision = parts[1];
+  const appId = parts.slice(2).join('_');
   const data = load();
   const app = data.applications.find((a) => a.id === appId);
   if (!app) {
