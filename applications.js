@@ -1,4 +1,5 @@
- // applications.js — Creator & Moderator application system.
+
+// applications.js — Creator & Moderator application system.
 // Roles: Community Moderator, Senior Moderator (capped combined at MOD_CAP),
 // Manga Artist, Translator, Editor, Proofreader, Letter Writer (uncapped).
 
@@ -281,6 +282,24 @@ async function viewApplicationDetail(interaction) {
   await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
 }
 
+// ---- Autocomplete for /applicationdetail's id option — lets admins pick
+// an applicant by name/role instead of copy-pasting the raw ID ----
+async function handleIdAutocomplete(interaction) {
+  const focused = interaction.options.getFocused().toLowerCase();
+  const data = load();
+  const matches = data.applications
+    .filter((a) => a.status === 'pending')
+    .filter((a) => a.username.toLowerCase().includes(focused) || a.roleLabel.toLowerCase().includes(focused))
+    .sort((a, b) => b.submittedAt - a.submittedAt)
+    .slice(0, 25)
+    .map((a) => ({
+      name: `${a.roleLabel} — ${a.username} (${new Date(a.submittedAt).toLocaleDateString()})`.slice(0, 100),
+      value: a.id,
+    }));
+
+  await interaction.respond(matches);
+}
+
 module.exports = {
   ROLES,
   MOD_CAP,
@@ -291,4 +310,5 @@ module.exports = {
   getApprovedModCount,
   listApplications,
   viewApplicationDetail,
+  handleIdAutocomplete,
 };
