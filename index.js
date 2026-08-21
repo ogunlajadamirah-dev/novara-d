@@ -110,7 +110,7 @@ const commands = [
   new SlashCommandBuilder()
     .setName('applicationdetail')
     .setDescription('(Admin) View the full form for one application by ID')
-    .addStringOption((o) => o.setName('id').setDescription('Application ID (copy from /viewapplications)').setRequired(true)),
+    .addStringOption((o) => o.setName('id').setDescription('Search by applicant name or role').setRequired(true).setAutocomplete(true)),
   new SlashCommandBuilder().setName('dbstatus').setDescription('(Admin) Check whether the bot is connected to Postgres and see what\'s stored'),
   new SlashCommandBuilder().setName('rps').setDescription('Play Rock Paper Scissors against the bot'),
   new SlashCommandBuilder().setName('guessnumber').setDescription('Start a number-guessing game in this channel (1-100)'),
@@ -265,6 +265,12 @@ client.on('messageCreate', async (message) => {
 
 // ---- Slash command handling ----
 client.on('interactionCreate', async (interaction) => {
+  // Autocomplete for /applicationdetail
+  if (interaction.isAutocomplete() && interaction.commandName === 'applicationdetail') {
+    await applications.handleIdAutocomplete(interaction).catch((err) => console.error('autocomplete failed:', err));
+    return;
+  }
+
   // Role picker for /apply
   if (interaction.isStringSelectMenu() && interaction.customId === 'apply_role_select') {
     await applications.handleRoleSelect(interaction).catch((err) => console.error('apply_role_select failed:', err));
